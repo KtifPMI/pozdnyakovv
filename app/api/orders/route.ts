@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { product, name, phone, email, comment } = body;
     
-    const orders = await getOrders();
+    const orders: any[] = await getOrders();
     const newOrder = { id: Date.now(), product, name, phone, email, comment, status: 'new', created_at: new Date().toISOString() };
     orders.push(newOrder);
     await saveOrders(orders);
