@@ -3,9 +3,9 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-let pool: any = null;
+let pool: pg.Pool | null = null;
 
-function getPool() {
+function getPool(): pg.Pool | null {
   if (!process.env.DATABASE_URL) return null;
   
   if (!pool) {
@@ -28,6 +28,13 @@ export async function GET() {
   }
   
   const pool = getPool();
+  
+  if (!pool) {
+    return NextResponse.json({
+      status: 'NO_POOL',
+      message: 'Failed to create pool'
+    });
+  }
   
   try {
     await pool.query('SELECT 1');
