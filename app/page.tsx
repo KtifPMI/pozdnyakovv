@@ -123,6 +123,9 @@ export default function Home() {
       showToast('Заполните название и цену');
       return;
     }
+    
+    const newProd = { ...newProduct, id: Date.now(), in_stock: true, price: parseInt(newProduct.price) || 0 };
+    
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
@@ -131,46 +134,46 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.error) {
-        showToast('Ошибка: ' + data.error);
-        // Add locally anyway for demo
-        const newProd = { ...newProduct, id: Date.now(), in_stock: true, price: parseInt(newProduct.price) || 0 };
-        setProducts([...products, newProd]);
-        setAdminProducts([...adminProducts, newProd]);
+        showToast('Сохранено локально');
       } else {
-        fetchProducts();
-        setNewProduct({ title: '', price: '', description: '', image: '' });
         showToast('Товар добавлен!', 'success');
       }
     } catch (e) {
-      showToast('Ошибка добавления');
-      // Add locally anyway
-      const newProd = { ...newProduct, id: Date.now(), in_stock: true, price: parseInt(newProduct.price) || 0 };
-      setProducts([...products, newProd]);
-      setAdminProducts([...adminProducts, newProd]);
+      showToast('Сохранено локально');
     }
+    
+    setProducts([...products, newProd]);
+    setAdminProducts([...adminProducts, newProd]);
+    setNewProduct({ title: '', price: '', description: '', image: '' });
   };
 
   const toggleStock = async (product: Product) => {
+    const updated = { ...product, in_stock: !product.in_stock };
+    setProducts(products.map(p => p.id === product.id ? updated : p));
+    setAdminProducts(adminProducts.map(p => p.id === product.id ? updated : p));
+    
     try {
       await fetch(`/api/products/${product.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...product, in_stock: !product.in_stock }),
+        body: JSON.stringify(updated),
       });
-      fetchProducts();
     } catch (e) {
-      showToast('Ошибка обновления');
+      // Already updated locally
     }
   };
 
   const deleteProduct = async (id: number) => {
     if (!confirm('Удалить товар?')) return;
+    
+    setProducts(products.filter(p => p.id !== id));
+    setAdminProducts(adminProducts.filter(p => p.id !== id));
+    showToast('Товар удален');
+    
     try {
       await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      fetchProducts();
-      showToast('Товар удален');
     } catch (e) {
-      showToast('Ошибка удаления');
+      // Already updated locally
     }
   };
 
