@@ -34,10 +34,13 @@ export default function Home() {
     try {
       const res = await fetch('/api/products');
       const data = await res.json();
+      if (data.error) {
+        showToast(data.error + (data.details ? ': ' + data.details : ''));
+      }
       setProducts(data);
       setAdminProducts(data);
-    } catch (e) {
-      showToast('Ошибка загрузки');
+    } catch (e: any) {
+      showToast('Ошибка: ' + (e?.message || 'unknown'));
     } finally {
       setLoading(false);
     }
