@@ -124,16 +124,29 @@ export default function Home() {
       return;
     }
     try {
-      await fetch('/api/products', {
+      const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newProduct),
       });
-      fetchProducts();
-      setNewProduct({ title: '', price: '', description: '', image: '' });
-      showToast('Товар добавлен!', 'success');
+      const data = await res.json();
+      if (data.error) {
+        showToast('Ошибка: ' + data.error);
+        // Add locally anyway for demo
+        const newProd = { ...newProduct, id: Date.now(), in_stock: true, price: parseInt(newProduct.price) || 0 };
+        setProducts([...products, newProd]);
+        setAdminProducts([...adminProducts, newProd]);
+      } else {
+        fetchProducts();
+        setNewProduct({ title: '', price: '', description: '', image: '' });
+        showToast('Товар добавлен!', 'success');
+      }
     } catch (e) {
       showToast('Ошибка добавления');
+      // Add locally anyway
+      const newProd = { ...newProduct, id: Date.now(), in_stock: true, price: parseInt(newProduct.price) || 0 };
+      setProducts([...products, newProd]);
+      setAdminProducts([...adminProducts, newProd]);
     }
   };
 
