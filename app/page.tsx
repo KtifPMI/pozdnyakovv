@@ -19,7 +19,7 @@ const DEFAULT_PRODUCTS: Product[] = [
 ];
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -33,23 +33,23 @@ export default function Home() {
   const [adminProducts, setAdminProducts] = useState<Product[]>([]);
   const [newProduct, setNewProduct] = useState({ title: '', price: '', description: '', image: '' });
 
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch('/api/products');
-      const data = await res.json();
-      setProducts(Array.isArray(data) ? data : DEFAULT_PRODUCTS);
-      setAdminProducts(Array.isArray(data) ? data : DEFAULT_PRODUCTS);
-    } catch (e) {
-      setProducts(DEFAULT_PRODUCTS);
-      setAdminProducts(DEFAULT_PRODUCTS);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchProducts();
+    const saved = localStorage.getItem('tshop_products');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setProducts(parsed);
+        setAdminProducts(parsed);
+      } catch {}
+    }
+    setLoading(false);
   }, []);
+
+  const saveProducts = (prods: Product[]) => {
+    localStorage.setItem('tshop_products', JSON.stringify(prods));
+    setProducts(prods);
+    setAdminProducts(prods);
+  };
 
   const showToast = (message: string, type = '') => {
     setToast({ message, type });
@@ -101,55 +101,35 @@ export default function Home() {
     }
   };
 
-  const addProduct = async () => {
+  const addProduct = () => {
     if (!newProduct.title || !newProduct.price) {
       showToast('Заполните название и цену');
       return;
     }
     
-    const newProd = {
+    const newProd: Product = {
+      id: Date.now(),
       title: newProduct.title,
       price: parseInt(newProduct.price) || 0,
       description: newProduct.description,
       image: newProduct.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600',
+      in_stock: true,
     };
     
-    try {
-      await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newProd),
-      });
-      fetchProducts();
-      setNewProduct({ title: '', price: '', description: '', image: '' });
-      showToast('Товар добавлен!', 'success');
-    } catch (e) {
-      showToast('Ошибка добавления');
-    }
+    saveProducts([...products, newProd]);
+    setNewProduct({ title: '', price: '', description: '', image: '' });
+    showToast('Товар добавлен!', 'success');
   };
 
-  const toggleStock = async (product: Product) => {
-    try {
-      await fetch(`/api/products/${product.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...product, in_stock: !product.in_stock }),
-      });
-      fetchProducts();
-    } catch (e) {
-      showToast('Ошибка обновления');
-    }
+  const toggleStock = (product: Product) => {
+    const updated = products.map(p => p.id === product.id ? { ...p, in_stock: !p.in_stock } : p);
+    saveProducts(updated);
   };
 
-  const deleteProduct = async (id: number) => {
+  const deleteProduct = (id: number) => {
     if (!confirm('Удалить товар?')) return;
-    try {
-      await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      fetchProducts();
-      showToast('Товар удален');
-    } catch (e) {
-      showToast('Ошибка удаления');
-    }
+    saveProducts(products.filter(p => p.id !== id));
+    showToast('Товар удален');
   };
 
   if (loading) {
