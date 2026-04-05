@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server';
-import { kv, isKVAvailable } from '@onreza/runtime/kv';
+import { kv } from '@onreza/runtime/kv';
 
 async function getProducts() {
-  if (!isKVAvailable()) return [];
-  const cached = await kv.get('products', { type: 'json' });
-  return cached || [];
+  try {
+    const cached = await kv.get('products', { type: 'json' });
+    return cached || [];
+  } catch {
+    return [];
+  }
 }
 
 async function saveProducts(products: any[]) {
-  if (isKVAvailable()) {
+  try {
     await kv.set('products', JSON.stringify(products));
+  } catch {
+    // fail silently
   }
 }
 

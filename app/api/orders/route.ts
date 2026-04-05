@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { kv, isKVAvailable } from '@onreza/runtime/kv';
+import { kv } from '@onreza/runtime/kv';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -18,18 +18,32 @@ async function sendToTelegram(message: string) {
   }
 }
 
+async function getOrders() {
+  try {
+    const orders = await kv.get('orders', { type: 'json' });
+    return orders || [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveOrders(orders: any[]) {
+  try {
+    await kv.set('orders', JSON.stringify(orders));
+  } catch {
+    // fail silently
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { product, name, phone, email, comment } = body;
     
-    const orders: any[] = isKVAvailable() ? (await kv.get('orders', { type: 'json' })) || [] : [];
+    const orders = await getOrders();
     const newOrder = { id: Date.now(), product, name, phone, email, comment, status: 'new', created_at: new Date().toISOString() };
     orders.push(newOrder);
-    
-    if (isKVAvailable()) {
-      await kv.set('orders', JSON.stringify(orders));
-    }
+    await saveOrders(orders);
 
     const message = `🛒 НОВЫЙ ЗАКАЗ!\n\nТовар: ${product}\nИмя: ${name}\nТелефон: ${phone}\nEmail: ${email}\nКомментарий: ${comment || '-'}`;
     sendToTelegram(message);
@@ -42,7 +56,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const orders = isKVAvailable() ? (await kv.get('orders', { type: 'json' })) || [] : [];
+    const orders = await getOrders();
     return NextResponse.json(orders.reverse());
   } catch (error: any) {
     return NextResponse.json([]);

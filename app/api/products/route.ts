@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { kv, isKVAvailable } from '@onreza/runtime/kv';
+import { kv } from '@onreza/runtime/kv';
 
 const DEFAULT_PRODUCTS = [
   { id: 1, title: 'Classic White Tee', price: 2500, description: 'Базовая белая футболка из 100% хлопка', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600', in_stock: true },
@@ -9,20 +9,21 @@ const DEFAULT_PRODUCTS = [
 ];
 
 async function getProducts() {
-  if (!isKVAvailable()) {
+  try {
+    const cached = await kv.get('products', { type: 'json' });
+    if (cached) return cached;
+    await kv.set('products', JSON.stringify(DEFAULT_PRODUCTS));
+    return DEFAULT_PRODUCTS;
+  } catch {
     return DEFAULT_PRODUCTS;
   }
-  
-  const cached = await kv.get('products', { type: 'json' });
-  if (cached) return cached;
-  
-  await kv.set('products', JSON.stringify(DEFAULT_PRODUCTS));
-  return DEFAULT_PRODUCTS;
 }
 
 async function saveProducts(products: any[]) {
-  if (isKVAvailable()) {
+  try {
     await kv.set('products', JSON.stringify(products));
+  } catch {
+    // Fail silently
   }
 }
 
