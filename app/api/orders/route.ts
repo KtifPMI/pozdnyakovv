@@ -18,10 +18,11 @@ async function sendToTelegram(message: string) {
   }
 }
 
-async function getOrders() {
+async function getOrders(): Promise<any[]> {
   try {
     const orders = await kv.get('orders', { type: 'json' });
-    return orders || [];
+    if (Array.isArray(orders)) return orders;
+    return [];
   } catch {
     return [];
   }
