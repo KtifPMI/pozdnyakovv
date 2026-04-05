@@ -1,18 +1,30 @@
 import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
+import initSqlJs from 'sql.js';
 
-let pool: Pool | null = null;
+let db: any = null;
 
-function getPool() {
-  if (!process.env.DATABASE_URL) return null;
+async function getDb() {
+  if (db) return db;
   
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-    });
-  }
-  return pool;
+  const SQL = await initSqlJs({
+    locateFile: (file: string) => `https://sql.js.org/dist/${file}`,
+  });
+  
+  db = new SQL.Database();
+  
+  db.run(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product VARCHAR(255),
+      name VARCHAR(255),
+      phone VARCHAR(50),
+      email VARCHAR(255),
+      comment TEXT,
+      status VARCHAR(50) DEFAULT 'new'
+    )
+  `);
+  
+  return db;
 }
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -33,38 +45,45 @@ async function sendToTelegram(message: string) {
 }
 
 export async function POST(request: Request) {
-  const dbPool = getPool();
-  if (!dbPool) {
-    return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
-  }
-  
   try {
+    const database = await getDb();
     const body = await request.json();
     const { product, name, phone, email, comment } = body;
     
-    const result = await dbPool.query(
-      'INSERT INTO orders (product, name, phone, email, comment) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    database.run(
+      'INSERT INTO orders (product, name, phone, email, comment) VALUES (?, ?, ?, ?, ?)',
       [product, name, phone, email, comment]
     );
 
     const message = `🛒 НОВЫЙ ЗАКАЗ!\n\nТовар: ${product}\nИмя: ${name}\nТелефон: ${phone}\nEmail: ${email}\nКомментарий: ${comment || '-'}`;
     sendToTelegram(message);
     
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to create order', details: error.message }, { status: 500 });
   }
 }
 
 export async function GET() {
-  const dbPool = getPool();
-  if (!dbPool) {
-    return NextResponse.json([]);
-  }
-  
   try {
-    const result = await dbPool.query('SELECT * FROM orders ORDER BY created_at DESC');
-    return NextResponse.json(result.rows);
+    const database = await getDb();
+    const result = database.exec('SELECT * FROM orders ORDER BY id DESC');
+    
+    if (result.length === 0) {
+      return NextResponse.json([]);
+    }
+    
+    const orders = result[0].values.map((row: any) => ({
+      id: row[0],
+      product: row[1],
+      name: row[2],
+      phone: row[3],
+      email: row[4],
+      comment: row[5],
+      status: row[6],
+    }));
+    
+    return NextResponse.json(orders);
   } catch (error: any) {
     return NextResponse.json([]);
   }
