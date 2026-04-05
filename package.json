@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@onreza/runtime": "^0.5.0",
     "next": "14.2.3",
     "pg": "^8.13.0",
     "react": "^18",

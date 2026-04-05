@@ -33,24 +33,23 @@ export default function Home() {
   const [adminProducts, setAdminProducts] = useState<Product[]>([]);
   const [newProduct, setNewProduct] = useState({ title: '', price: '', description: '', image: '' });
 
-  useEffect(() => {
-    const saved = localStorage.getItem('tshop_products');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setProducts(parsed);
-      setAdminProducts(parsed);
-    } else {
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      setProducts(Array.isArray(data) ? data : DEFAULT_PRODUCTS);
+      setAdminProducts(Array.isArray(data) ? data : DEFAULT_PRODUCTS);
+    } catch (e) {
       setProducts(DEFAULT_PRODUCTS);
       setAdminProducts(DEFAULT_PRODUCTS);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
-
-  const saveProducts = (prods: Product[]) => {
-    localStorage.setItem('tshop_products', JSON.stringify(prods));
-    setProducts(prods);
-    setAdminProducts(prods);
   };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const showToast = (message: string, type = '') => {
     setToast({ message, type });
@@ -102,35 +101,55 @@ export default function Home() {
     }
   };
 
-  const addProduct = () => {
+  const addProduct = async () => {
     if (!newProduct.title || !newProduct.price) {
       showToast('Заполните название и цену');
       return;
     }
     
-    const newProd: Product = {
-      id: Date.now(),
+    const newProd = {
       title: newProduct.title,
       price: parseInt(newProduct.price) || 0,
       description: newProduct.description,
       image: newProduct.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600',
-      in_stock: true,
     };
     
-    saveProducts([...products, newProd]);
-    setNewProduct({ title: '', price: '', description: '', image: '' });
-    showToast('Товар добавлен!', 'success');
+    try {
+      await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProd),
+      });
+      fetchProducts();
+      setNewProduct({ title: '', price: '', description: '', image: '' });
+      showToast('Товар добавлен!', 'success');
+    } catch (e) {
+      showToast('Ошибка добавления');
+    }
   };
 
-  const toggleStock = (product: Product) => {
-    const updated = products.map(p => p.id === product.id ? { ...p, in_stock: !p.in_stock } : p);
-    saveProducts(updated);
+  const toggleStock = async (product: Product) => {
+    try {
+      await fetch(`/api/products/${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...product, in_stock: !product.in_stock }),
+      });
+      fetchProducts();
+    } catch (e) {
+      showToast('Ошибка обновления');
+    }
   };
 
-  const deleteProduct = (id: number) => {
+  const deleteProduct = async (id: number) => {
     if (!confirm('Удалить товар?')) return;
-    saveProducts(products.filter(p => p.id !== id));
-    showToast('Товар удален');
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      fetchProducts();
+      showToast('Товар удален');
+    } catch (e) {
+      showToast('Ошибка удаления');
+    }
   };
 
   if (loading) {
