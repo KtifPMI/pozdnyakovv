@@ -5,22 +5,29 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 async function sendToTelegram(message: string) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    console.log('Telegram not configured, skipping notification');
+    return;
+  }
   
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: TELEGRAM_CHAT_ID,
-      text: message,
-    }),
-  });
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+      }),
+    });
+  } catch (e) {
+    console.error('Telegram error:', e);
+  }
 }
 
 export async function POST(request: Request) {
   const pool = getPool();
   if (!pool) {
-    return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    return NextResponse.json({ error: 'Database not configured. Add DATABASE_URL in project settings.' }, { status: 500 });
   }
   
   try {
@@ -37,8 +44,8 @@ export async function POST(request: Request) {
     sendToTelegram(message);
     
     return NextResponse.json(result.rows[0]);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Failed to create order', details: error.message }, { status: 500 });
   }
 }
 
@@ -51,7 +58,7 @@ export async function GET() {
   try {
     const result = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
     return NextResponse.json(result.rows);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Failed to fetch orders', details: error.message }, { status: 500 });
   }
 }
