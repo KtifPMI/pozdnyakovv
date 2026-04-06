@@ -96,11 +96,9 @@ export default function Home() {
     e.preventDefault();
     
     const newErrors: { phone?: string; email?: string } = {};
-    const phoneRegex = /^[\d\s\-+()]{10,}$/;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
-    if (!phoneRegex.test(orderData.phone)) {
-      newErrors.phone = 'Введите корректный номер телефона';
+    const phoneDigits = orderData.phone.replace(/\D/g, '');
+    if (phoneDigits.length !== 11) {
+      newErrors.phone = 'Введите корректный номер телефона (11 цифр)';
     }
     if (!emailRegex.test(orderData.email)) {
       newErrors.email = 'Введите корректный email';
