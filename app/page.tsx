@@ -26,6 +26,7 @@ export default function Home() {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [orderData, setOrderData] = useState({ name: '', phone: '', email: '', comment: '' });
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [errors, setErrors] = useState<{ phone?: string; email?: string }>({});
   const [logoClicks, setLogoClicks] = useState(0);
   const [showLogin, setShowLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -93,6 +94,23 @@ export default function Home() {
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const newErrors: { phone?: string; email?: string } = {};
+    const phoneRegex = /^[\d\s\-+()]{10,}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!phoneRegex.test(orderData.phone)) {
+      newErrors.phone = 'Введите корректный номер телефона';
+    }
+    if (!emailRegex.test(orderData.email)) {
+      newErrors.email = 'Введите корректный email';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
+    setErrors({});
     try {
       await fetch('/api/orders', {
         method: 'POST',
@@ -283,11 +301,13 @@ export default function Home() {
                 </div>
                 <div style={styles.formGroup}>
                   <label>Телефон</label>
-                  <input style={styles.input} required type="tel" value={orderData.phone} onChange={e => setOrderData({...orderData, phone: e.target.value})} />
+                  <input style={{...styles.input, ...(errors.phone ? styles.inputError : {})}} required type="tel" value={orderData.phone} onChange={e => { setOrderData({...orderData, phone: e.target.value}); setErrors({...errors, phone: undefined}); }} placeholder="+7 (999) 000-00-00" />
+                  {errors.phone && <span style={styles.errorText}>{errors.phone}</span>}
                 </div>
                 <div style={styles.formGroup}>
                   <label>Email</label>
-                  <input style={styles.input} required type="email" value={orderData.email} onChange={e => setOrderData({...orderData, email: e.target.value})} />
+                  <input style={{...styles.input, ...(errors.email ? styles.inputError : {})}} required type="email" value={orderData.email} onChange={e => { setOrderData({...orderData, email: e.target.value}); setErrors({...errors, email: undefined}); }} placeholder="example@mail.ru" />
+                  {errors.email && <span style={styles.errorText}>{errors.email}</span>}
                 </div>
                 <div style={styles.formGroup}>
                   <label>Комментарий</label>
@@ -347,6 +367,8 @@ const styles: Record<string, React.CSSProperties> = {
   btnDisabled: { background: '#2a2a2a', color: '#888', cursor: 'not-allowed' },
   formGroup: { marginBottom: '20px' },
   input: { width: '100%', background: '#0a0a0a', border: '1px solid #2a2a2a', color: '#fff', padding: '14px 16px', fontSize: '14px' },
+  inputError: { border: '1px solid #ff4444' },
+  errorText: { color: '#ff4444', fontSize: '12px', marginTop: '6px', display: 'block' },
   textarea: { width: '100%', background: '#0a0a0a', border: '1px solid #2a2a2a', color: '#fff', padding: '14px 16px', fontSize: '14px', minHeight: '100px', resize: 'vertical' },
   loginForm: { background: '#141414', border: '1px solid #2a2a2a', padding: '40px', maxWidth: '400px', width: '100%' },
   toast: { position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#141414', border: '1px solid #2a2a2a', padding: '16px 32px', zIndex: 300 },
