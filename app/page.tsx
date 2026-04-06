@@ -34,19 +34,29 @@ export default function Home() {
   const [newProduct, setNewProduct] = useState({ title: '', price: '', description: '', image: '' });
 
   useEffect(() => {
-    const saved = localStorage.getItem('tshop_products');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setProducts(parsed);
-        setAdminProducts(parsed);
-      } catch {}
-    }
-    setLoading(false);
+    fetchProducts();
   }, []);
 
-  const saveProducts = (prods: Product[]) => {
-    localStorage.setItem('tshop_products', JSON.stringify(prods));
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      setProducts(data);
+      setAdminProducts(data);
+    } catch (e) {
+      console.error('Failed to fetch products', e);
+    }
+    setLoading(false);
+  };
+
+  const saveProducts = async (prods: Product[]) => {
+    try {
+      await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prods[prods.length - 1]),
+      });
+    } catch {}
     setProducts(prods);
     setAdminProducts(prods);
   };
@@ -101,7 +111,7 @@ export default function Home() {
     }
   };
 
-  const addProduct = () => {
+  const addProduct = async () => {
     if (!newProduct.title || !newProduct.price) {
       showToast('Заполните название и цену');
       return;
@@ -116,19 +126,35 @@ export default function Home() {
       in_stock: true,
     };
     
-    saveProducts([...products, newProd]);
+    try {
+      await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProd),
+      });
+    } catch {}
+    await fetchProducts();
     setNewProduct({ title: '', price: '', description: '', image: '' });
     showToast('Товар добавлен!', 'success');
   };
 
-  const toggleStock = (product: Product) => {
-    const updated = products.map(p => p.id === product.id ? { ...p, in_stock: !p.in_stock } : p);
-    saveProducts(updated);
+  const toggleStock = async (product: Product) => {
+    try {
+      await fetch(`/api/products/${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ in_stock: !product.in_stock }),
+      });
+    } catch {}
+    await fetchProducts();
   };
 
-  const deleteProduct = (id: number) => {
+  const deleteProduct = async (id: number) => {
     if (!confirm('Удалить товар?')) return;
-    saveProducts(products.filter(p => p.id !== id));
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    } catch {}
+    await fetchProducts();
     showToast('Товар удален');
   };
 

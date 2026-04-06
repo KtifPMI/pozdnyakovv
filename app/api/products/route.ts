@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { kv } from '@onreza/runtime/kv';
 
 const DEFAULT_PRODUCTS = [
   { id: 1, title: 'Classic White Tee', price: 2500, description: 'Базовая белая футболка из 100% хлопка', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600', in_stock: true },
@@ -7,12 +8,37 @@ const DEFAULT_PRODUCTS = [
   { id: 4, title: 'Premium Cotton', price: 4500, description: 'Премиальная из органического хлопка', image: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=600', in_stock: true },
 ];
 
+async function getProducts() {
+  try {
+    const data = await kv.get('products');
+    if (data) return JSON.parse(data as string);
+    await kv.set('products', JSON.stringify(DEFAULT_PRODUCTS));
+    return DEFAULT_PRODUCTS;
+  } catch {
+    return DEFAULT_PRODUCTS;
+  }
+}
+
+async function saveProducts(products: any[]) {
+  try {
+    await kv.set('products', JSON.stringify(products));
+  } catch {}
+}
+
 export async function GET() {
-  return NextResponse.json(DEFAULT_PRODUCTS);
+  const products = await getProducts();
+  return NextResponse.json(products);
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const newProduct = { ...body, id: Date.now(), in_stock: true };
-  return NextResponse.json(newProduct);
+  try {
+    const body = await request.json();
+    const products = await getProducts();
+    const newProduct = { ...body, id: Date.now(), in_stock: true };
+    products.push(newProduct);
+    await saveProducts(products);
+    return NextResponse.json(newProduct);
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Failed to create product', details: error.message }, { status: 500 });
+  }
 }
